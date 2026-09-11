@@ -45,3 +45,34 @@ jobs:
 
       - name: Lint, type-check and test
         run: make check
+
+  bench:
+    name: Reduced benchmark sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          version: "0.11.17"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies from the lockfile
+        run: uv sync --locked
+
+      # Proves the benchmark pipeline still runs end to end. Deliberately a reduced
+      # sweep: the published numbers come from `make bench`, which is far too slow to
+      # gate every push, but a harness that silently rots is worse than a slow one.
+      - name: Run the reduced sweep
+        run: make bench-fast
+
+      - name: Check the artifact was written
+        run: test -s benchmarks/results/benchmark-fast.json

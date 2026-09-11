@@ -1,0 +1,236 @@
+{
+  "config": {
+    "encodings": [
+      "dense",
+      "one_hot"
+    ],
+    "label": "fast",
+    "n_seeds": 10,
+    "sequences": [
+      "HPHPPH",
+      "HHPHPPHH"
+    ]
+  },
+  "environment": {
+    "git_sha": "984ab4e4b8725540d235d6ff3a8ef4fc7fd9a562-dirty",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10",
+    "timestamp_utc": "2026-09-11T12:57:06.675508+00:00",
+    "version_foldq": "0.1.0",
+    "version_numpy": "2.5.3",
+    "version_qiskit": "2.5.2",
+    "version_scipy": "1.18.1"
+  },
+  "instances": [
+    {
+      "core_degree": 5,
+      "encoding": "dense",
+      "exact_evaluations": 64,
+      "exact_wall_time_s": 0.002049800008535385,
+      "n_auxiliary_qubits": 9,
+      "n_beads": 6,
+      "n_contact_qubits": 1,
+      "n_turn_qubits": 6,
+      "optimum": -1,
+      "sequence": "HPHPPH",
+      "total_qubits": 16
+    },
+    {
+      "core_degree": 3,
+      "encoding": "one_hot",
+      "exact_evaluations": 64,
+      "exact_wall_time_s": 0.002049800008535385,
+      "n_auxiliary_qubits": 8,
+      "n_beads": 6,
+      "n_contact_qubits": 1,
+      "n_turn_qubits": 12,
+      "optimum": -1,
+      "sequence": "HPHPPH",
+      "total_qubits": 21
+    },
+    {
+      "core_degree": 5,
+      "encoding": "dense",
+      "exact_evaluations": 1024,
+      "exact_wall_time_s": 0.027154000010341406,
+      "n_auxiliary_qubits": 50,
+      "n_beads": 8,
+      "n_contact_qubits": 4,
+      "n_turn_qubits": 10,
+      "optimum": -1,
+      "sequence": "HHPHPPHH",
+      "total_qubits": 64
+    },
+    {
+      "core_degree": 3,
+      "encoding": "one_hot",
+      "exact_evaluations": 1024,
+      "exact_wall_time_s": 0.027154000010341406,
+      "n_auxiliary_qubits": 36,
+      "n_beads": 8,
+      "n_contact_qubits": 4,
+      "n_turn_qubits": 20,
+      "optimum": -1,
+      "sequence": "HHPHPPHH",
+      "total_qubits": 60
+    }
+  ],
+  "summaries": [
+    {
+      "approximation_ratio": 1.0,
+      "best_energy": -1.0,
+      "encoding": "dense",
+      "mean_evaluations": 3200.0,
+      "mean_wall_time_s": 0.2318628099950729,
+      "n_beads": 6,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "annealing",
+      "success_probability": 0.4,
+      "time_to_solution_s": 2.0902782674775837
+    },
+    {
+      "approximation_ratio": 1.0,
+      "best_energy": -1.0,
+      "encoding": "dense",
+      "mean_evaluations": 1400.0,
+      "mean_wall_time_s": 0.1332794499990996,
+      "n_beads": 6,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "annealing-slaved",
+      "success_probability": 1.0,
+      "time_to_solution_s": 0.1332794499990996
+    },
+    {
+      "approximation_ratio": -0.0,
+      "best_energy": 0.0,
+      "encoding": "dense",
+      "mean_evaluations": 512.0,
+      "mean_wall_time_s": 0.031858080002712084,
+      "n_beads": 6,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "bifurcation",
+      "success_probability": 0.0,
+      "time_to_solution_s": null
+    },
+    {
+      "approximation_ratio": 1.0,
+      "best_energy": -1.0,
+      "encoding": "one_hot",
+      "mean_evaluations": 4200.0,
+      "mean_wall_time_s": 0.1772275300056208,
+      "n_beads": 6,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "annealing",
+      "success_probability": 0.5,
+      "time_to_solution_s": 1.1774742222263295
+    },
+    {
+      "approximation_ratio": 1.0,
+      "best_energy": -1.0,
+      "encoding": "one_hot",
+      "mean_evaluations": 2600.0,
+      "mean_wall_time_s": 0.26490456000028645,
+      "n_beads": 6,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "annealing-slaved",
+      "success_probability": 0.9,
+      "time_to_solution_s": 0.5298091200005728
+    },
+    {
+      "approximation_ratio": 1.0,
+      "best_energy": -1.0,
+      "encoding": "one_hot",
+      "mean_evaluations": 512.0,
+      "mean_wall_time_s": 0.028484819995355792,
+      "n_beads": 6,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "bifurcation",
+      "success_probability": 0.8,
+      "time_to_solution_s": 0.08150512845659155
+    },
+    {
+      "approximation_ratio": -0.0,
+      "best_energy": 0.0,
+      "encoding": "dense",
+      "mean_evaluations": 12800.0,
+      "mean_wall_time_s": 0.561537529999623,
+      "n_beads": 8,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "annealing",
+      "success_probability": 0.0,
+      "time_to_solution_s": null
+    },
+    {
+      "approximation_ratio": 1.0,
+      "best_energy": -1.0,
+      "encoding": "dense",
+      "mean_evaluations": 2800.0,
+      "mean_wall_time_s": 0.3876574899972184,
+      "n_beads": 8,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "annealing-slaved",
+      "success_probability": 1.0,
+      "time_to_solution_s": 0.3876574899972184
+    },
+    {
+      "approximation_ratio": -34.0,
+      "best_energy": 34.0,
+      "encoding": "dense",
+      "mean_evaluations": 512.0,
+      "mean_wall_time_s": 0.05482612000196241,
+      "n_beads": 8,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "bifurcation",
+      "success_probability": 0.0,
+      "time_to_solution_s": null
+    },
+    {
+      "approximation_ratio": -0.0,
+      "best_energy": 0.0,
+      "encoding": "one_hot",
+      "mean_evaluations": 12000.0,
+      "mean_wall_time_s": 0.5095347099995706,
+      "n_beads": 8,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "annealing",
+      "success_probability": 0.0,
+      "time_to_solution_s": null
+    },
+    {
+      "approximation_ratio": 1.0,
+      "best_energy": -1.0,
+      "encoding": "one_hot",
+      "mean_evaluations": 4800.0,
+      "mean_wall_time_s": 0.6218213499960257,
+      "n_beads": 8,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "annealing-slaved",
+      "success_probability": 0.4,
+      "time_to_solution_s": 5.605813429837607
+    },
+    {
+      "approximation_ratio": -420.0,
+      "best_energy": 420.0,
+      "encoding": "one_hot",
+      "mean_evaluations": 512.0,
+      "mean_wall_time_s": 0.05478012000094168,
+      "n_beads": 8,
+      "n_runs": 10,
+      "optimum": -1,
+      "solver": "bifurcation",
+      "success_probability": 0.0,
+      "time_to_solution_s": null
+    }
+  ]
+}

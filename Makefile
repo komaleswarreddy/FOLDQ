@@ -18,9 +18,9 @@ help:
 	@echo "  test         Run the test suite"
 	@echo "  check        Run everything CI runs (lint, typecheck, test)"
 	@echo "  clean        Remove caches and build artifacts"
-	@echo "  bench        (M6) Full benchmark sweep - not implemented yet"
-	@echo "  bench-fast   (M6) Reduced sweep for CI - not implemented yet"
-	@echo "  figures      (M6) Regenerate figures from artifacts - not implemented yet"
+	@echo "  bench        Full benchmark sweep, writes a JSON artifact"
+	@echo "  bench-fast   Reduced sweep for CI"
+	@echo "  figures      Regenerate figures from the committed artifact"
 
 sync:
 	$(UV) sync
@@ -46,18 +46,13 @@ clean:
 	rm -rf build dist *.egg-info
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
-# The three targets below are declared so the command interface is stable, but they
-# are not implemented yet. They exit non-zero on purpose: a task that prints nothing
-# and returns success looks like a benchmark that ran, which is what Guardrail 1
-# exists to prevent.
+# `bench` regenerates every number in README.md and RESULTS.md from scratch.
+# `bench-fast` runs the same code path on a reduced sweep, fast enough to gate CI.
 bench:
-	@echo "make bench is not implemented until milestone M6. See PROJECT_BRIEF.md." >&2
-	@exit 1
+	$(UV) run foldq bench
 
 bench-fast:
-	@echo "make bench-fast is not implemented until milestone M6. See PROJECT_BRIEF.md." >&2
-	@exit 1
+	$(UV) run foldq bench --fast
 
 figures:
-	@echo "make figures is not implemented until milestone M6. See PROJECT_BRIEF.md." >&2
-	@exit 1
+	$(UV) run foldq figures

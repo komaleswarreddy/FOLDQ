@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
-from foldq.peptide import FoldingInstance
+from foldq.hamiltonian import FoldingHamiltonian
 
 
 @dataclass(frozen=True)
@@ -61,6 +61,14 @@ class Solver(Protocol):
         """Short identifier used in artifacts, tables and figures."""
         ...
 
-    def solve(self, instance: FoldingInstance, seed: int | None = None) -> SolverResult:
-        """Search ``instance`` and report the best conformation found."""
+    def solve(
+        self, hamiltonian: FoldingHamiltonian, seed: int | None = None
+    ) -> SolverResult:
+        """Search ``hamiltonian`` and report the best conformation found.
+
+        Every solver receives the Hamiltonian rather than the raw instance, so the
+        benchmark can guarantee they were all given the identical problem. Solvers that
+        do not need the encoded form, such as exhaustive enumeration, read
+        ``hamiltonian.instance``.
+        """
         ...

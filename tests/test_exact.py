@@ -12,6 +12,7 @@ import itertools
 
 import pytest
 
+from foldq.hamiltonian import build_hamiltonian
 from foldq.lattice import CubicLattice, TetrahedralLattice
 from foldq.peptide import FoldingInstance, Peptide, hp_energy
 from foldq.solvers.exact import ExactSolver, exhaustive_search
@@ -109,8 +110,9 @@ def test_solver_protocol_is_satisfied_and_results_are_reproducible() -> None:
     """
     solver = ExactSolver()
     instance = FoldingInstance(Peptide("HPHPPH"), TetrahedralLattice())
-    first = solver.solve(instance, seed=0)
-    second = solver.solve(instance, seed=99)
+    hamiltonian = build_hamiltonian(instance)
+    first = solver.solve(hamiltonian, seed=0)
+    second = solver.solve(hamiltonian, seed=99)
     assert solver.name == "exact"
     assert first.energy == second.energy
     assert first.turns == second.turns

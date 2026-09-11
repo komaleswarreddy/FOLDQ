@@ -15,6 +15,7 @@ from __future__ import annotations
 import time
 
 from foldq.encoding import enumerate_turns
+from foldq.hamiltonian import FoldingHamiltonian
 from foldq.peptide import FoldingInstance, hp_energy
 from foldq.solvers.base import SolverResult
 
@@ -102,9 +103,18 @@ class ExactSolver:
         """Short identifier used in artifacts, tables and figures."""
         return "exact"
 
-    def solve(self, instance: FoldingInstance, seed: int | None = None) -> SolverResult:
-        """Return the exact optimum for ``instance``; ``seed`` is ignored."""
-        result = exhaustive_search(instance, fix_symmetry=self._fix_symmetry)
+    def solve(
+        self, hamiltonian: FoldingHamiltonian, seed: int | None = None
+    ) -> SolverResult:
+        """Return the exact optimum; ``seed`` is ignored because this is deterministic.
+
+        Enumerates conformations directly rather than reading the encoded Hamiltonian,
+        so its answer is independent of the encoding and can serve as ground truth for
+        every other solver.
+        """
+        result = exhaustive_search(
+            hamiltonian.instance, fix_symmetry=self._fix_symmetry
+        )
         return SolverResult(
             energy=result.energy,
             turns=result.turns,

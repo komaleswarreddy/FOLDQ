@@ -38,13 +38,6 @@ function Invoke-Step {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
-function Stop-NotImplemented {
-    param([Parameter(Mandatory)][string]$Name)
-
-    Write-Host "$Name is not implemented until milestone M6. See PROJECT_BRIEF.md." -ForegroundColor Yellow
-    exit 1
-}
-
 function Invoke-Lint {
     Invoke-Step @($uv, 'run', 'ruff', 'check', '.')
     Invoke-Step @($uv, 'run', 'ruff', 'format', '--check', '.')
@@ -68,9 +61,9 @@ switch ($Target) {
         Write-Host '  test         Run the test suite'
         Write-Host '  check        Run everything CI runs (lint, typecheck, test)'
         Write-Host '  clean        Remove caches and build artifacts'
-        Write-Host '  bench        (M6) Full benchmark sweep - not implemented yet'
-        Write-Host '  bench-fast   (M6) Reduced sweep for CI - not implemented yet'
-        Write-Host '  figures      (M6) Regenerate figures from artifacts - not implemented yet'
+        Write-Host '  bench        Full benchmark sweep, writes a JSON artifact'
+        Write-Host '  bench-fast   Reduced sweep for CI'
+        Write-Host '  figures      Regenerate figures from the committed artifact'
     }
     'sync' {
         Invoke-Step @($uv, 'sync')
@@ -114,13 +107,13 @@ switch ($Target) {
         Write-Host 'Cleaned caches and build artifacts.'
     }
     'bench' {
-        Stop-NotImplemented 'make bench'
+        Invoke-Step @($uv, 'run', 'foldq', 'bench')
     }
     'bench-fast' {
-        Stop-NotImplemented 'make bench-fast'
+        Invoke-Step @($uv, 'run', 'foldq', 'bench', '--fast')
     }
     'figures' {
-        Stop-NotImplemented 'make figures'
+        Invoke-Step @($uv, 'run', 'foldq', 'figures')
     }
     default {
         Write-Host "Unknown target '$Target'. Run '.\make.ps1 help' for the list." -ForegroundColor Red
