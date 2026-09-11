@@ -18,26 +18,34 @@ this repository is built under, is in [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 
 Full write-up and verdict: **[RESULTS.md](RESULTS.md)**.
 
-The headline, from the committed `benchmark-fast.json` artifact (N=6, `HPHPPH`, 10 seeds
-per solver): ballistic simulated bifurcation reaches the exact optimum in **0 of 10**
-runs on the qubit-efficient dense encoding and **8 of 10** on the one-hot encoding — the
-same instance, the same ground state, differing only in how a turn is written into
-qubits.
+From the committed `benchmark-full.json` artifact — 6 sequences x 2 encodings x 3 solvers
+x 50 seeds, about 55 minutes of compute:
 
-| N | encoding | solver | p_s | TTS @99% |
+| N | encoding | naive annealing | slaved annealing | ballistic SB |
 | --- | --- | --- | --- | --- |
-| 6 | dense | bifurcation | 0.00 | not reached |
-| 6 | one-hot | bifurcation | **0.80** | 0.08 s |
-| 8 | dense | annealing (independent) | 0.00 | not reached |
-| 8 | dense | annealing (slaved) | **1.00** | 0.39 s |
+| 6 | dense | 0.86 | **1.00** | 0.00 |
+| 6 | one-hot | 0.72 | **1.00** | **0.90** |
+| 8 | dense | 0.02 | **1.00** | 0.00 |
+| 8 | one-hot | 0.04 | 0.82 | 0.00 |
+| 10 | dense | 0.00 | 0.14 | 0.00 |
+| 10 | one-hot | 0.00 | 0.14 | 0.00 |
 
-The dense encoding minimises qubit count and is the one the Ising-machine-style solver
-handles worst: degree reduction to reach a quadratic form introduces penalty weights
-~10⁴ above the physical energy scale, and a contact worth −1 becomes a rounding error.
+Success probability over 50 seeded runs, against the exact optimum from exhaustive
+enumeration.
 
-`make bench` regenerates the full 50-seed sweep; it is slow by design, and CI runs
-`make bench-fast` to prove the pipeline still works end to end. **No variational quantum
-solver was benchmarked**, so the quantum half of the headline question is unanswered.
+**The quantum-inspired solver loses.** Ballistic simulated bifurcation reaches the exact
+optimum on one instance class in the whole sweep — six beads under the one-hot encoding —
+and scores 0.00 everywhere else; from N=7 up, the best energy it finds is *positive*,
+meaning an infeasible conformation. Simulated annealing with a structure-aware move set
+holds 1.00 to N=9.
+
+The one place it works is the second finding: at N=6 the same solver on the same instance
+scores **0.00 on the dense encoding and 0.90 on the one-hot encoding**. The dense encoding
+minimises qubit count, and reaching a quadratic form from it introduces penalty weights
+~10^4 above the physical energy scale, so a contact worth -1 becomes a rounding error.
+
+**No variational quantum solver was benchmarked**, so the quantum half of the headline
+question is unanswered. See RESULTS.md for the full limitations.
 
 ---
 
@@ -82,29 +90,18 @@ what provides a genuine external check at sizes that can be enumerated exactly.
 ### Solvers: the encoding decides the outcome
 
 Both encodings describe identical physics and agree on the ground state. They do not
-behave alike under a solver. Success probability over seeded runs, against the exact
-optimum from exhaustive enumeration:
-
-| N | encoding | locality | variables | SA (independent) | SA (slaved) | bSB |
-| --- | --- | --- | --- | --- | --- | --- |
-| 6 | dense | 5 | 16 | 0.85 | **1.00** | 0.00 |
-| 6 | one-hot | 3 | 21 | **1.00** | **1.00** | **0.90** |
-| 8 | dense | 5 | 64 | 0.05 | **1.00** | 0.00 |
-| 8 | one-hot | 3 | 60 | 0.00 | 0.82 | 0.00 |
-
-Two results, in opposite directions:
+behave alike under a solver, and the ranking depends on the move set. The measured table
+is in [RESULTS.md](RESULTS.md) and above; the mechanism is:
 
 **On the raw QUBO, one-hot wins.** Rosenberg degree reduction of the 5-local dense
-encoding produces penalty weights ~10⁴ above the physical energy scale, and a contact
-worth −1 becomes a rounding error on that landscape. Ballistic SB never resolves it —
-it finds valid folds with zero contacts. The 3-local one-hot encoding needs far less
-reduction, its coefficient range is ~65× smaller, and bSB starts working.
+encoding produces penalty weights ~10^4 above the physical energy scale, and a contact
+worth -1 becomes a rounding error on that landscape. Ballistic SB never resolves it. The
+3-local one-hot encoding needs far less reduction, and bSB starts working.
 
 **Under a structure-aware move set, dense wins.** Auxiliaries are *determined* by the
 primary variables, so slaving them to their defining products shrinks the effective
-search to the primaries — 14 for dense against 24 for one-hot. The encoding that is
-friendlier to a naive solver is the harder one for a solver that exploits the
-structure.
+search to the primaries -- 14 for dense against 24 for one-hot. The encoding friendlier
+to a naive solver is the harder one for a solver that exploits the structure.
 
 Qubit efficiency and solver-friendliness are not the same axis, and the dense encoding
 that minimises qubit count is the one a near-term Ising machine handles worst.
