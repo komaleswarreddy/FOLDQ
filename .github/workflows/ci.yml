@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, type-check and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          # Pinned to the version used for local development, so a uv upgrade cannot
+          # silently change dependency resolution between a laptop and CI.
+          version: "0.11.17"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies from the lockfile
+        # --locked fails the build if uv.lock is out of date with pyproject.toml rather
+        # than quietly re-resolving. That is the reproducibility guarantee doing its job.
+        run: uv sync --locked
+
+      - name: Lint, type-check and test
+        run: make check
