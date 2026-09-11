@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from foldq.benchmark.report import render
 from foldq.benchmark.runner import (
     FAST,
     FULL,
@@ -99,6 +100,22 @@ def figures(
         raise typer.BadParameter(message)
     for written in generate_all(load_report(path), FIGURES_DIR):
         typer.echo(f"wrote {written}")
+
+
+@app.command()
+def report(
+    label: Annotated[str, typer.Option(help="Which artifact to render")] = "full",
+) -> None:
+    """Print the generated RESULTS.md tables for a committed artifact.
+
+    The tables in RESULTS.md come from here rather than being typed, so a number can
+    only appear in the write-up if it is in the artifact.
+    """
+    path = RESULTS_DIR / f"benchmark-{label}.json"
+    if not path.is_file():
+        message = f"no artifact at {path}; run 'foldq bench' first"
+        raise typer.BadParameter(message)
+    typer.echo(render(load_report(path)))
 
 
 if __name__ == "__main__":  # pragma: no cover

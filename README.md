@@ -16,15 +16,28 @@ this repository is built under, is in [PROJECT_BRIEF.md](PROJECT_BRIEF.md).
 
 ## Results
 
-**Not yet measured.** No benchmark has been run. This table is the shape the results will
-take; every cell will be regenerated from committed artifacts by `make bench`, and no
-number will appear here that does not trace to one.
+Full write-up and verdict: **[RESULTS.md](RESULTS.md)**.
 
-| Solver | Ground-state energy | Approximation ratio | Success probability `p_s` | Time-to-solution |
+The headline, from the committed `benchmark-fast.json` artifact (N=6, `HPHPPH`, 10 seeds
+per solver): ballistic simulated bifurcation reaches the exact optimum in **0 of 10**
+runs on the qubit-efficient dense encoding and **8 of 10** on the one-hot encoding — the
+same instance, the same ground state, differing only in how a turn is written into
+qubits.
+
+| N | encoding | solver | p_s | TTS @99% |
 | --- | --- | --- | --- | --- |
-| Exhaustive enumeration (ground truth) | not yet measured | not yet measured | not yet measured | not yet measured |
-| Simulated annealing | not yet measured | not yet measured | not yet measured | not yet measured |
-| Simulated bifurcation (quantum-inspired) | not yet measured | not yet measured | not yet measured | not yet measured |
+| 6 | dense | bifurcation | 0.00 | not reached |
+| 6 | one-hot | bifurcation | **0.80** | 0.08 s |
+| 8 | dense | annealing (independent) | 0.00 | not reached |
+| 8 | dense | annealing (slaved) | **1.00** | 0.39 s |
+
+The dense encoding minimises qubit count and is the one the Ising-machine-style solver
+handles worst: degree reduction to reach a quadratic form introduces penalty weights
+~10⁴ above the physical energy scale, and a contact worth −1 becomes a rounding error.
+
+`make bench` regenerates the full 50-seed sweep; it is slow by design, and CI runs
+`make bench-fast` to prove the pipeline still works end to end. **No variational quantum
+solver was benchmarked**, so the quantum half of the headline question is unanswered.
 
 ---
 
@@ -43,7 +56,7 @@ implemented**, and this README will not claim otherwise until they are.
 | M3 — Classical and quantum-inspired solvers | Simulated annealing, simulated bifurcation | **Done** |
 | M4 — Variational quantum solver | VQE / QAOA with CVaR | Out of scope for this build |
 | M5 — Noise and mitigation study | Depolarising / thermal sweeps, M3 and ZNE | Out of scope for this build |
-| M6 — Benchmark harness and results | Multi-seed sweeps, artifacts, figures, RESULTS.md | Planned |
+| M6 — Benchmark harness and results | Multi-seed sweeps, artifacts, figures, RESULTS.md | **Done** |
 | M7 — Service layer | FastAPI job submission, Docker | Out of scope for this build |
 | M8 — Viewer and writeup | Streamlit artifact viewer | Out of scope for this build |
 
