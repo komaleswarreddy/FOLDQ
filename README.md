@@ -39,7 +39,7 @@ implemented**, and this README will not claim otherwise until they are.
 | --- | --- | --- |
 | M0 — Scaffold | Package, tooling, CI | **Done** |
 | M1 — Lattice and exhaustive baseline | Tetrahedral geometry, self-avoidance, HP contacts | **Done** |
-| M2 — Hamiltonian construction | Pauli / QUBO / Ising views, derived penalty weights | Planned |
+| M2 — Hamiltonian construction | Pauli / QUBO / Ising views, derived penalty weights | **Done** |
 | M3 — Classical and quantum-inspired solvers | Simulated annealing, simulated bifurcation | Planned |
 | M4 — Variational quantum solver | VQE / QAOA with CVaR | Out of scope for this build |
 | M5 — Noise and mitigation study | Depolarising / thermal sweeps, M3 and ZNE | Out of scope for this build |
@@ -65,6 +65,35 @@ The cubic lattice is a validation geometry only — the qubit encoding never use
 is here because the published HP benchmark sequences begin at N ≈ 20, far beyond
 exhaustive enumeration on any lattice, so walk counts rather than HP ground states are
 what provides a genuine external check at sizes that can be enumerated exactly.
+
+### Hamiltonian resources
+
+The Hamiltonian follows Robert et al., npj Quantum Information **7**, 38 (2021)
+([arXiv:1908.02163](https://arxiv.org/abs/1908.02163)), with the dense two-qubit-per-turn
+encoding. One pseudo-Boolean polynomial is the single source of truth; the Pauli, QUBO
+and Ising views are all exported from it.
+
+| N | mode | turn | contact | auxiliary | total | locality |
+| --- | --- | --- | --- | --- | --- | --- |
+| 7 | published | 8 | 2 | 22 | 32 | 5 |
+| 7 | strict SAW | 8 | 2 | 34 | 44 | 8 |
+| 9 | published | 12 | 6 | 84 | 102 | 5 |
+| 9 | strict SAW | 12 | 6 | 288 | 306 | 12 |
+
+The turn register is 2(N−3), matching the paper. The published model's **locality stays
+at 5 for every chain length** — that is its central resource claim, reproduced here from
+our own construction rather than quoted.
+
+Auxiliary qubits come from Rosenberg degree reduction: the dense encoding makes the
+distance quartic and the gated interaction term quintic, and a QUBO or Ising `(J, h)` is
+quadratic by definition. Reporting only the 2(N−3) turn register would understate the
+width by roughly 3×.
+
+`enforce_global_saw=True` adds exact excluded-volume constraints. The published model
+protects only against overlaps adjacent to a claimed contact; measured over every
+sequence tested, its ground state is nonetheless a valid self-avoiding fold at N ≤ 9,
+but that is an empirical result rather than a guarantee. Making it a guarantee costs
+locality that grows with N — affordable classically, not on a near-term device.
 
 Symmetry fixing is measured, not assumed: holding the first two turns fixed leaves
 exactly 1 in 12 self-avoiding conformations, the order of the tetrahedral rotation

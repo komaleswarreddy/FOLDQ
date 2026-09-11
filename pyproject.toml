@@ -118,6 +118,13 @@ show_error_codes = true
 pretty = true
 files = ["foldq", "tests"]
 
+# qiskit ships no py.typed marker, so mypy cannot see its annotations. Verified
+# against qiskit 2.5.2 rather than assumed; scoped to qiskit alone so a missing
+# stub anywhere else still fails the build.
+[[tool.mypy.overrides]]
+module = ["qiskit.*"]
+ignore_missing_imports = true
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
