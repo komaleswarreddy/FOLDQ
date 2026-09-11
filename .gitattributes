@@ -1,0 +1,15 @@
+# Normalise to LF in the repository. Without this, Git on Windows can commit a CRLF
+# Makefile, which GNU make on the CI runner will not parse.
+* text=auto eol=lf
+
+Makefile     text eol=lf
+*.py         text eol=lf
+*.toml       text eol=lf
+*.yml        text eol=lf
+*.md         text eol=lf
+
+# PowerShell is checked out with CRLF for Windows hosts.
+*.ps1        text eol=crlf
+
+# Never touch binary artifacts.
+*.png        binary
