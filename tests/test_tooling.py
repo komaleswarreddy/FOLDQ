@@ -15,6 +15,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE = REPO_ROOT / "Makefile"
 SHIM = REPO_ROOT / "make.ps1"
+WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 #: A Makefile target: a name in the first column, followed by a colon.
 _MAKE_TARGET = re.compile(r"^(?P<name>[a-z][a-z0-9-]*):", re.MULTILINE)
@@ -93,3 +94,24 @@ def test_unimplemented_targets_are_declared_as_failing() -> None:
         recipe = makefile_text.split(f"\n{target}:\n", 1)[1].split("\n\n", 1)[0]
         assert "not implemented" in recipe
         assert "exit 1" in recipe
+
+
+#: An action reference in the workflow, e.g. ``uses: actions/checkout@v7.0.1``.
+_ACTION_USES = re.compile(
+    r"^\s*uses:\s*(?P<ref>[\w.-]+/[\w.-]+)@(?P<tag>\S+)", re.MULTILINE
+)
+
+
+def test_workflow_actions_are_pinned_to_exact_tags() -> None:
+    """Every CI action is pinned to an exact release tag, not a floating major.
+
+    A bare major tag is not guaranteed to exist: astral-sh/setup-uv publishes major
+    tags only up to v7 while its latest release is v10.1.0, so ``@v10`` resolves to
+    nothing and the job fails in "Set up job", before checkout and before any of this
+    test suite runs. Requiring a dotted tag catches that offline, and it also pins
+    exactly which action code produced a given benchmark artifact.
+    """
+    matches = _ACTION_USES.findall(WORKFLOW.read_text(encoding="utf-8"))
+    assert matches, "no action references found in the workflow"
+    floating = [f"{ref}@{tag}" for ref, tag in matches if "." not in tag]
+    assert not floating, f"actions pinned to a floating major tag: {floating}"

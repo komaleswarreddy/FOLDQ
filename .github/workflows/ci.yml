@@ -19,11 +19,15 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # Actions are pinned to exact release tags rather than floating major tags.
+      # astral-sh/setup-uv publishes major tags only up to v7 even though its latest
+      # release is v10.1.0, so `@v10` does not resolve and the job fails before
+      # checkout. Exact tags avoid that class of failure and pin what actually ran.
       - name: Check out the repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           # Pinned to the version used for local development, so a uv upgrade cannot
           # silently change dependency resolution between a laptop and CI.
