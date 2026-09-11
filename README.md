@@ -38,7 +38,7 @@ implemented**, and this README will not claim otherwise until they are.
 | Milestone | Scope | Status |
 | --- | --- | --- |
 | M0 — Scaffold | Package, tooling, CI | **Done** |
-| M1 — Lattice and exhaustive baseline | Tetrahedral geometry, self-avoidance, HP contacts | Planned |
+| M1 — Lattice and exhaustive baseline | Tetrahedral geometry, self-avoidance, HP contacts | **Done** |
 | M2 — Hamiltonian construction | Pauli / QUBO / Ising views, derived penalty weights | Planned |
 | M3 — Classical and quantum-inspired solvers | Simulated annealing, simulated bifurcation | Planned |
 | M4 — Variational quantum solver | VQE / QAOA with CVaR | Out of scope for this build |
@@ -50,6 +50,25 @@ implemented**, and this README will not claim otherwise until they are.
 Optional dependency groups for the out-of-scope milestones (`[quantum]`, `[reference]`)
 are declared in `pyproject.toml` so the boundary is explicit rather than implied, but
 nothing in the package imports them yet.
+
+## Validation so far
+
+The lattice geometry and the self-avoidance predicate are checked against published
+enumerations that nothing in this repository chose:
+
+| Lattice | Self-avoiding walks, 0–9 steps | Source |
+| --- | --- | --- |
+| Simple cubic | 1, 6, 30, 150, 726, 3534, 16926, 81390, 387966, 1853886 | [OEIS A001412](https://oeis.org/A001412) |
+| Diamond (tetrahedral) | 1, 4, 12, 36, 108, 324, 948, 2796, 8196, 24060 | [A227715](https://oeis.org/A227715) + [A227716](https://oeis.org/A227716), summed over endpoint |
+
+The cubic lattice is a validation geometry only — the qubit encoding never uses it. It
+is here because the published HP benchmark sequences begin at N ≈ 20, far beyond
+exhaustive enumeration on any lattice, so walk counts rather than HP ground states are
+what provides a genuine external check at sizes that can be enumerated exactly.
+
+Symmetry fixing is measured, not assumed: holding the first two turns fixed leaves
+exactly 1 in 12 self-avoiding conformations, the order of the tetrahedral rotation
+group A₄, and is verified to leave the optimum unchanged.
 
 ---
 
