@@ -571,6 +571,10 @@ class FoldingHamiltonian:
     quadratized: QuadratizationResult
     enforce_global_saw: bool
     epsilon: ContactEnergy = field(repr=False)
+    #: Auxiliary repairs as (auxiliary, left, right), in creation order. Cached
+    #: because repair runs once per solver proposal and re-deriving the order there
+    #: dominated the annealing inner loop.
+    auxiliary_order: tuple[tuple[int, int, int], ...] = ()
 
     @property
     def core_degree(self) -> int:
@@ -618,13 +622,17 @@ class FoldingHamiltonian:
         reported energy without changing what is being optimised.
 
         Auxiliaries are repaired in creation order, because a later auxiliary may stand
-        for a product involving an earlier one.
+        for a product involving an earlier one. The work is done on a Python list
+        rather than by indexing a NumPy array element by element: this runs once per
+        proposal inside the annealing loop, where scalar NumPy indexing is several
+        times more expensive than plain list access.
         """
-        repaired = np.array(bits, dtype=np.int64).copy()
-        for auxiliary in sorted(self.quadratized.auxiliary_of):
-            left, right = self.quadratized.auxiliary_of[auxiliary]
-            repaired[auxiliary] = repaired[left] * repaired[right]
-        return repaired
+        values = (
+            bits.tolist() if isinstance(bits, np.ndarray) else [int(b) for b in bits]
+        )
+        for auxiliary, left, right in self.auxiliary_order:
+            values[auxiliary] = values[left] * values[right]
+        return np.array(values, dtype=np.int64)
 
     def decode_turns(self, bits: Sequence[int] | NDArray[np.int_]) -> tuple[int, ...]:
         """Decode a solver's bit vector back into a turn sequence.
@@ -836,4 +844,8 @@ def build_hamiltonian(
         quadratized=quadratized,
         enforce_global_saw=enforce_global_saw,
         epsilon=epsilon,
+        auxiliary_order=tuple(
+            (auxiliary, *quadratized.auxiliary_of[auxiliary])
+            for auxiliary in sorted(quadratized.auxiliary_of)
+        ),
     )

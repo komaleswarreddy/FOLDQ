@@ -229,10 +229,21 @@ def anneal_slaved(
     rng = np.random.default_rng(seed)
     qubo = hamiltonian.to_qubo()
 
+    # E(x) = diagonal . x + 0.5 x^T couplings x + offset, with `couplings` the
+    # symmetrised off-diagonal part. Keeping the local field `couplings @ x` up to date
+    # turns the cost of a proposal from O(n^2) into O(|changed| * n), which is what
+    # makes a full sweep minutes rather than hours: repairing auxiliaries changes only a
+    # handful of variables, never the whole vector.
+    diagonal = np.diag(qubo.matrix).astype(np.float64)
+    couplings = _symmetrise(qubo.matrix)
+    np.fill_diagonal(couplings, 0.0)
+
     n_primary = hamiltonian.layout.n_primary_qubits
     state = np.zeros(qubo.n_variables, dtype=np.int64)
     state[:n_primary] = rng.integers(0, 2, size=n_primary)
     state = hamiltonian.repair_auxiliaries(state)
+
+    field = couplings @ state
     energy = qubo.energy(state)
 
     best_energy = energy
@@ -250,11 +261,21 @@ def anneal_slaved(
             candidate = state.copy()
             candidate[flips] ^= 1
             candidate = hamiltonian.repair_auxiliaries(candidate)
-            candidate_energy = qubo.energy(candidate)
 
-            delta = candidate_energy - energy
+            changed = np.flatnonzero(candidate != state)
+            if changed.size == 0:
+                continue
+            step = (candidate[changed] - state[changed]).astype(np.float64)
+            delta = float(
+                diagonal[changed] @ step
+                + field[changed] @ step
+                + 0.5 * step @ couplings[np.ix_(changed, changed)] @ step
+            )
+
             if delta <= 0.0 or rng.random() < np.exp(-beta * delta):
-                state, energy = candidate, candidate_energy
+                state = candidate
+                field += couplings[:, changed] @ step
+                energy += delta
                 if energy < best_energy:
                     best_energy = energy
                     best_state = state.copy()
