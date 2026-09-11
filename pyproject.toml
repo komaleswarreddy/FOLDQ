@@ -1,0 +1,139 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "foldq"
+description = "A reproducible benchmark of quantum, quantum-inspired and classical solvers on the coarse-grained lattice protein folding problem."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+dynamic = ["version"]
+authors = [{ name = "Komaleswar Reddy", email = "n210038@rguktn.ac.in" }]
+keywords = [
+    "protein-folding",
+    "quantum-computing",
+    "simulated-bifurcation",
+    "combinatorial-optimisation",
+    "benchmark",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
+]
+
+# Core runtime dependencies. qiskit is core rather than an extra because M2 requires a
+# SparsePauliOp view of the Hamiltonian and exact diagonalisation of it -- that is needed
+# even in a build that never runs a variational solver.
+dependencies = [
+    "numpy>=2.1,<3",
+    "scipy>=1.14,<2",
+    "qiskit>=2.0,<3",
+    "pyyaml>=6.0,<7",
+    "typer>=0.15,<1",
+    "matplotlib>=3.9,<4",
+    "pandas>=2.2,<4",
+]
+
+[project.optional-dependencies]
+# Gate-based simulation and measurement-error mitigation (milestones M4/M5).
+# Declared, but NOT part of the current build scope -- see the status table in README.md.
+quantum = ["qiskit-aer>=0.17,<0.18", "mthree>=2.8,<4"]
+
+# Third-party implementation used ONLY as a test oracle for M2, never in the solve path.
+# qiskit-nature 0.8.0 declares qiskit>=1.4,<3.0, so it co-installs with qiskit 2.x.
+# Whether its protein-folding module still exists in 0.8.0 is unverified as of M0; the
+# M2 test must skip cleanly when it is absent.
+reference = ["qiskit-nature>=0.8,<0.9"]
+
+[project.urls]
+Repository = "https://github.com/komaleswarreddy/FOLDQ"
+
+# No [project.scripts] entry yet: foldq/cli.py does not exist until M6, and a console
+# script pointing at a missing module produces an install that fails on first use.
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9,<1",
+    "mypy>=2.0,<3",
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "hypothesis>=6.120,<7",
+]
+
+[tool.hatch.version]
+# Single source of truth for the version: the package itself.
+path = "foldq/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["foldq"]
+
+# ---------------------------------------------------------------------------
+# Lint / format
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+src = ["foldq", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # import sorting
+    "N",    # pep8-naming
+    "D",    # pydocstyle -- Guardrail 5 requires citations in docstrings
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "SIM",  # simplify
+    "ARG",  # unused arguments
+    "PTH",  # prefer pathlib
+    "C4",   # comprehensions
+    "NPY",  # numpy-specific rules
+    "RUF",
+]
+
+[tool.ruff.lint.pydocstyle]
+# Numpy-style docstrings: Parameters / Returns / References sections, so that the
+# literature citation for a physics choice has a conventional home.
+convention = "numpy"
+
+[tool.ruff.lint.isort]
+known-first-party = ["foldq"]
+
+# ---------------------------------------------------------------------------
+# Type checking
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+files = ["foldq", "tests"]
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "slow: long-running test, excluded from the fast CI gate",
+    "quantum: requires the [quantum] extra (qiskit-aer, mthree)",
+    "reference: requires the [reference] extra (qiskit-nature) as a cross-check oracle",
+]
+
+[tool.coverage.run]
+source = ["foldq"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
