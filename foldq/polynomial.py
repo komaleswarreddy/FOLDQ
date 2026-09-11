@@ -185,13 +185,16 @@ class QuadratizationResult:
         replaces, so a solution can be checked for consistency and the auxiliaries
         eliminated when decoding.
     penalty_weight
-        The weight applied to each Rosenberg penalty term.
+        The largest Rosenberg penalty weight used, reported for diagnostics.
+    penalty_weights
+        The weight applied to each auxiliary's Rosenberg penalty.
     """
 
     polynomial: BinaryPolynomial
     n_auxiliaries: int
     auxiliary_of: Mapping[int, tuple[int, int]]
     penalty_weight: float
+    penalty_weights: Mapping[int, float]
 
 
 def quadratize(
@@ -211,11 +214,20 @@ def quadratize(
 
     Penalty weight
     --------------
-    The weight must exceed any benefit an assignment could gain by violating a
-    substitution. Since ``R >= 1`` whenever the substitution is violated, and the total
-    value of the polynomial can move by at most the sum of the absolute values of its
-    non-constant coefficients, setting the weight above that sum is sufficient. That
-    bound is computed from the polynomial rather than chosen, and is asserted below.
+    A weight must exceed any benefit an assignment could gain by violating its
+    substitution. Since ``R >= 1`` whenever a substitution is violated, it is enough
+    that the weight exceed the total absolute coefficient of every term the auxiliary
+    appears in: that is the most the rest of the polynomial can move in its favour.
+
+    Weights are computed *per auxiliary*, from the terms that auxiliary actually
+    appears in, rather than from one global bound over the whole polynomial. Both are
+    provably correct, but the global bound is enormously loose: on this Hamiltonian it
+    gave weights near 1.4e5 against a physical energy scale of 2. That dynamic range
+    flattens the landscape into a needle in a haystack, which no local search can
+    navigate. The per-auxiliary bound keeps penalties close to what they enforce.
+
+    Auxiliaries are weighted in reverse order of creation, so that when an auxiliary's
+    weight is computed, every penalty that could contain it has already been fixed.
 
     Parameters
     ----------
@@ -233,12 +245,10 @@ def quadratize(
         )
         raise ValueError(message)
 
-    # Derived, not chosen: R >= 1 on violation, and no assignment can shift the
-    # polynomial by more than the L1 norm of its non-constant coefficients.
-    weight = polynomial.coefficient_l1_norm() + 1.0
-
+    # Phase one: substitute until quadratic, recording what each auxiliary stands for.
     current = polynomial
     auxiliary_of: dict[int, tuple[int, int]] = {}
+    order: list[int] = []
     next_index = first_auxiliary_index
 
     while current.degree > 2:
@@ -246,24 +256,37 @@ def quadratize(
         if pair is None:  # pragma: no cover - unreachable while degree > 2
             message = "no reducible pair found in a polynomial of degree > 2"
             raise RuntimeError(message)
-
         left, right = pair
         auxiliary = next_index
         next_index += 1
         auxiliary_of[auxiliary] = pair
-
+        order.append(auxiliary)
         current = _substitute(current, left, right, auxiliary)
-        current = current + _rosenberg_penalty(left, right, auxiliary, weight)
 
-    if current.degree > 2:  # pragma: no cover - loop guarantees otherwise
-        message = f"quadratization left degree {current.degree}"
+    # Phase two: weight each substitution against the terms it must dominate.
+    weights: dict[int, float] = {}
+    accumulated = current
+    for auxiliary in reversed(order):
+        exposure = sum(
+            abs(coefficient)
+            for monomial, coefficient in accumulated.terms.items()
+            if auxiliary in monomial
+        )
+        weight = exposure + 1.0
+        weights[auxiliary] = weight
+        left, right = auxiliary_of[auxiliary]
+        accumulated = accumulated + _rosenberg_penalty(left, right, auxiliary, weight)
+
+    if accumulated.degree > 2:  # pragma: no cover - substitution guarantees otherwise
+        message = f"quadratization left degree {accumulated.degree}"
         raise RuntimeError(message)
 
     return QuadratizationResult(
-        polynomial=current,
+        polynomial=accumulated,
         n_auxiliaries=len(auxiliary_of),
         auxiliary_of=auxiliary_of,
-        penalty_weight=weight,
+        penalty_weight=max(weights.values(), default=0.0),
+        penalty_weights=weights,
     )
 
 

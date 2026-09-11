@@ -58,9 +58,11 @@ import numpy as np
 from numpy.typing import NDArray
 
 from foldq.encoding import (
+    DENSE,
     FIXED_TURNS,
     N_DIRECTIONS,
     N_FIXED_TURNS,
+    TurnEncoding,
     enumerate_turns,
 )
 from foldq.lattice import TetrahedralLattice
@@ -118,7 +120,12 @@ class QubitLayout:
     n_beads: int
     turn_qubits: Mapping[tuple[int, int], int]
     contact_qubits: Mapping[tuple[int, int], int]
+    encoding: TurnEncoding = DENSE
     n_auxiliary_qubits: int = 0
+
+    def qubit_of(self, turn: int, bit: int) -> int:
+        """Return the variable index holding one bit of one turn."""
+        return self.turn_qubits[(turn, bit)]
 
     @property
     def n_turn_qubits(self) -> int:
@@ -146,11 +153,14 @@ class QubitLayout:
             n_beads=self.n_beads,
             turn_qubits=self.turn_qubits,
             contact_qubits=self.contact_qubits,
+            encoding=self.encoding,
             n_auxiliary_qubits=count,
         )
 
 
-def build_layout(instance: FoldingInstance) -> QubitLayout:
+def build_layout(
+    instance: FoldingInstance, encoding: TurnEncoding = DENSE
+) -> QubitLayout:
     """Assign variable indices to turn qubits and contact ancillas.
 
     Turns 0 and 1 are fixed by symmetry (see :data:`foldq.encoding.FIXED_TURNS`) and get
@@ -164,7 +174,7 @@ def build_layout(instance: FoldingInstance) -> QubitLayout:
     turn_qubits: dict[tuple[int, int], int] = {}
     index = 0
     for turn in range(N_FIXED_TURNS, instance.n_turns):
-        for bit in range(2):
+        for bit in range(encoding.qubits_per_turn):
             turn_qubits[(turn, bit)] = index
             index += 1
 
@@ -177,6 +187,7 @@ def build_layout(instance: FoldingInstance) -> QubitLayout:
         n_beads=instance.n_beads,
         turn_qubits=turn_qubits,
         contact_qubits=contact_qubits,
+        encoding=encoding,
     )
 
 
@@ -202,34 +213,17 @@ def chain_neighbours(index: int, n_beads: int) -> list[int]:
 def turn_indicator(layout: QubitLayout, turn: int, direction: int) -> BinaryPolynomial:
     """Return ``f_a(turn)``: 1 when ``turn`` points along ``direction``, else 0.
 
-    For the dense encoding the paper gives (Eq. SI-3 to SI-6), with ``q1`` the high bit
-    and ``q2`` the low bit of the turn::
-
-        f_0 = (1 - q1)(1 - q2)
-        f_1 = q2 (q2 - q1)   ==  q2 (1 - q1)
-        f_2 = q1 (q1 - q2)   ==  q1 (1 - q2)
-        f_3 = q1 q2
-
-    written here in the second, reduced form, which is identical because ``q**2 == q``.
-    The turn index is ``2*q1 + q2``.
+    Delegates to the layout's encoding, which is what makes the dense and one-hot
+    variants two configurations of one Hamiltonian rather than two Hamiltonians.
 
     Turns held fixed by symmetry have no qubits, so their indicators are constants.
     """
     if turn < N_FIXED_TURNS:
         return BinaryPolynomial.constant(1.0 if FIXED_TURNS[turn] == direction else 0.0)
-
-    q1 = BinaryPolynomial.variable(layout.turn_qubits[(turn, 0)])
-    q2 = BinaryPolynomial.variable(layout.turn_qubits[(turn, 1)])
-    if direction == 0:
-        return (1 - q1) * (1 - q2)
-    if direction == 1:
-        return q2 * (1 - q1)
-    if direction == 2:
-        return q1 * (1 - q2)
-    if direction == 3:
-        return q1 * q2
-    message = f"direction {direction} outside 0..{N_DIRECTIONS - 1}"
-    raise ValueError(message)
+    if not 0 <= direction < N_DIRECTIONS:
+        message = f"direction {direction} outside 0..{N_DIRECTIONS - 1}"
+        raise ValueError(message)
+    return layout.encoding.indicator(layout.qubit_of, turn, direction)
 
 
 def delta_n(layout: QubitLayout, i: int, j: int, direction: int) -> BinaryPolynomial:
@@ -354,6 +348,51 @@ def build_growth_constraint(
             for a in range(N_DIRECTIONS)
         )
         terms.append(weight * overlap_indicator)
+    return sum_polynomials(terms)
+
+
+def build_validity_constraint(
+    layout: QubitLayout, n_turns: int, rest_of_hamiltonian: BinaryPolynomial
+) -> BinaryPolynomial:
+    """Return the penalty keeping each turn register in a legal bit pattern.
+
+    Empty for the dense encoding, where all four patterns name a direction. For the
+    one-hot encoding it is the ``(sum_a q_a - 1)**2`` term of Eq. SI-15.
+
+    Weight derivation
+    -----------------
+    The weight must dominate whatever an assignment could gain by leaving the one-hot
+    subspace, and that is *not* the interaction energy scale. Setting two direction
+    qubits of a turn simultaneously makes several indicators true at once, which can
+    drive the distance polynomial -- and with it the ``lambda_1`` terms, which are two
+    orders of magnitude larger than any contact energy -- far negative.
+
+    So the weight is derived per turn from the terms it actually has to beat: the sum
+    of absolute coefficients of every monomial in the rest of the Hamiltonian that
+    touches one of that turn's qubits, plus one. Deriving it from the contact energy
+    scale instead produces a Hamiltonian whose global minimum lies *below* the physical
+    ground state, with the optimiser rewarded for an unphysical bit pattern -- which is
+    exactly the failure the test suite now guards against.
+    """
+    if (
+        layout.encoding.validity_penalty(layout.qubit_of, N_FIXED_TURNS, 1.0).terms
+        == {}
+    ):
+        return BinaryPolynomial.zero()
+
+    terms = []
+    for turn in range(N_FIXED_TURNS, n_turns):
+        owned = {
+            layout.qubit_of(turn, bit) for bit in range(layout.encoding.qubits_per_turn)
+        }
+        exposure = sum(
+            abs(coefficient)
+            for monomial, coefficient in rest_of_hamiltonian.terms.items()
+            if monomial & owned
+        )
+        terms.append(
+            layout.encoding.validity_penalty(layout.qubit_of, turn, exposure + 1.0)
+        )
     return sum_polynomials(terms)
 
 
@@ -558,9 +597,51 @@ class FoldingHamiltonian:
         assignment: dict[int, int] = {}
         for turn in range(N_FIXED_TURNS, self.instance.n_turns):
             direction = turns[turn]
-            assignment[self.layout.turn_qubits[(turn, 0)]] = direction >> 1
-            assignment[self.layout.turn_qubits[(turn, 1)]] = direction & 1
+            if self.layout.encoding.qubits_per_turn == 2:
+                assignment[self.layout.qubit_of(turn, 0)] = direction >> 1
+                assignment[self.layout.qubit_of(turn, 1)] = direction & 1
+            else:
+                for bit in range(self.layout.encoding.qubits_per_turn):
+                    assignment[self.layout.qubit_of(turn, bit)] = int(bit == direction)
         return assignment
+
+    def repair_auxiliaries(
+        self, bits: Sequence[int] | NDArray[np.int_]
+    ) -> NDArray[np.int_]:
+        """Set every quadratization auxiliary to the product it stands for.
+
+        Given the primary variables, this is a strict improvement and never a cheat.
+        Each auxiliary appears in exactly one Rosenberg penalty, which is zero when the
+        auxiliary equals its defining product and at least one otherwise, so repairing
+        can only lower the objective. It is applied at readout by every solver that
+        works on the quadratized form, which removes the auxiliary penalties from the
+        reported energy without changing what is being optimised.
+
+        Auxiliaries are repaired in creation order, because a later auxiliary may stand
+        for a product involving an earlier one.
+        """
+        repaired = np.array(bits, dtype=np.int64).copy()
+        for auxiliary in sorted(self.quadratized.auxiliary_of):
+            left, right = self.quadratized.auxiliary_of[auxiliary]
+            repaired[auxiliary] = repaired[left] * repaired[right]
+        return repaired
+
+    def decode_turns(self, bits: Sequence[int] | NDArray[np.int_]) -> tuple[int, ...]:
+        """Decode a solver's bit vector back into a turn sequence.
+
+        This is what gives a solution physical meaning: each pair of turn qubits names
+        one of the four lattice directions, and walking those directions out
+        reconstructs the fold. Contact and auxiliary variables are ignored -- they carry
+        no conformational information, and a correct solution has them determined by the
+        turn qubits anyway.
+        """
+        indices = [int(bit) for bit in bits]
+        turns = list(FIXED_TURNS)
+        for turn in range(N_FIXED_TURNS, self.instance.n_turns):
+            turns.append(
+                self.layout.encoding.decode_turn(indices, self.layout.qubit_of, turn)
+            )
+        return tuple(turns)
 
     def energy_of_turns(
         self, turns: Sequence[int]
@@ -688,6 +769,7 @@ def build_hamiltonian(
     epsilon: ContactEnergy | None = None,
     enforce_global_saw: bool = False,
     penalties: PenaltyWeights | None = None,
+    encoding: TurnEncoding = DENSE,
 ) -> FoldingHamiltonian:
     """Build the folding Hamiltonian for an instance.
 
@@ -720,7 +802,7 @@ def build_hamiltonian(
         raise ValueError(message)
 
     epsilon = epsilon if epsilon is not None else hp_contact_energy(instance)
-    layout = build_layout(instance)
+    layout = build_layout(instance, encoding)
     if penalties is None:
         penalties = derive_penalties(instance, epsilon)
 
@@ -733,7 +815,14 @@ def build_hamiltonian(
         )
 
     brackets = build_contact_brackets(layout, instance.n_beads, epsilon, penalties)
-    core = constraints + build_interaction(layout, brackets)
+    interaction = build_interaction(layout, brackets)
+
+    # The validity weight is derived from everything it must dominate, so it has to be
+    # computed after the rest of the Hamiltonian exists.
+    constraints = constraints + build_validity_constraint(
+        layout, instance.n_turns, constraints + interaction
+    )
+    core = constraints + interaction
 
     quadratized = quadratize(core, first_auxiliary_index=layout.n_primary_qubits)
 

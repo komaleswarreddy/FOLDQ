@@ -18,7 +18,11 @@ npj Quantum Information 7, 38 (2021).
 from __future__ import annotations
 
 import itertools
-from collections.abc import Iterator, Sequence
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterator, Sequence
+from typing import ClassVar
+
+from foldq.polynomial import BinaryPolynomial, sum_polynomials
 
 #: Number of directions at a tetrahedral lattice vertex.
 N_DIRECTIONS = 4
@@ -137,3 +141,149 @@ def enumerate_turns(
 
     for tail in itertools.product(range(N_DIRECTIONS), repeat=n_turns - N_FIXED_TURNS):
         yield (*FIXED_TURNS, *tail)
+
+
+# ---------------------------------------------------------------------------
+# Turn encodings
+# ---------------------------------------------------------------------------
+
+#: Maps a turn index and a bit position to the variable index carrying it.
+QubitIndex = Callable[[int, int], int]
+
+
+class TurnEncoding(ABC):
+    """How a turn is written in qubits.
+
+    Two encodings are provided, and the choice is the central resource trade-off of
+    this project.
+
+    The *dense* encoding uses two qubits per turn, the minimum possible for four
+    directions. Its turn indicators are quadratic, which makes the pairwise distance
+    quartic and the gated interaction term 5-local.
+
+    The *one-hot* encoding uses four qubits per turn and needs a validity penalty to
+    keep exactly one of them set. In exchange its indicators are a single qubit each,
+    so the distance is quadratic and the interaction only 3-local.
+
+    Both give the same physics and the same ground state. They differ in qubit count
+    and in how much degree reduction is needed before a QUBO or Ising model exists --
+    and, as the benchmark shows, in whether local solvers can navigate the result.
+    """
+
+    name: ClassVar[str]
+
+    #: Qubits used per free turn.
+    qubits_per_turn: ClassVar[int]
+
+    @abstractmethod
+    def indicator(
+        self, qubit_of: QubitIndex, turn: int, direction: int
+    ) -> BinaryPolynomial:
+        """Return ``f_a(turn)``: 1 when the turn points along ``direction``, else 0."""
+
+    @abstractmethod
+    def decode_turn(self, bits: Sequence[int], qubit_of: QubitIndex, turn: int) -> int:
+        """Read a turn's direction index back out of a solution vector."""
+
+    def validity_penalty(
+        self, qubit_of: QubitIndex, turn: int, weight: float
+    ) -> BinaryPolynomial:
+        """Return a penalty forcing the qubits of one turn to a legal pattern.
+
+        Empty by default: an encoding whose every bit pattern names a valid direction
+        needs no such term.
+        """
+        del qubit_of, turn, weight
+        return BinaryPolynomial.zero()
+
+
+class DenseEncoding(TurnEncoding):
+    """Two qubits per turn, with no wasted states.
+
+    The encoding of Robert et al., and the reason the tetrahedral lattice was chosen:
+    four directions fit exactly into two qubits, so every bit pattern is a legal turn
+    and no validity penalty is needed. The turn index is ``2 * q1 + q2``.
+    """
+
+    name: ClassVar[str] = "dense"
+    qubits_per_turn: ClassVar[int] = 2
+
+    def indicator(
+        self, qubit_of: QubitIndex, turn: int, direction: int
+    ) -> BinaryPolynomial:
+        """Return the products of Eq. SI-3 to SI-6 of the reference paper."""
+        q1 = BinaryPolynomial.variable(qubit_of(turn, 0))
+        q2 = BinaryPolynomial.variable(qubit_of(turn, 1))
+        if direction == 0:
+            return (1 - q1) * (1 - q2)
+        if direction == 1:
+            return q2 * (1 - q1)
+        if direction == 2:
+            return q1 * (1 - q2)
+        if direction == 3:
+            return q1 * q2
+        message = f"direction {direction} outside 0..{N_DIRECTIONS - 1}"
+        raise ValueError(message)
+
+    def decode_turn(self, bits: Sequence[int], qubit_of: QubitIndex, turn: int) -> int:
+        """Return ``2 * high + low``."""
+        return 2 * int(bits[qubit_of(turn, 0)]) + int(bits[qubit_of(turn, 1)])
+
+
+class OneHotEncoding(TurnEncoding):
+    """Four qubits per turn, exactly one of them set.
+
+    Each direction gets its own qubit, so an indicator is a single variable and every
+    expression built from indicators drops two degrees relative to the dense encoding.
+    The cost is twice the qubits per turn plus a penalty enforcing the one-hot
+    constraint, since twelve of the sixteen bit patterns are meaningless.
+    """
+
+    name: ClassVar[str] = "one_hot"
+    qubits_per_turn: ClassVar[int] = N_DIRECTIONS
+
+    def indicator(
+        self, qubit_of: QubitIndex, turn: int, direction: int
+    ) -> BinaryPolynomial:
+        """Return the single qubit assigned to this direction."""
+        if not 0 <= direction < N_DIRECTIONS:
+            message = f"direction {direction} outside 0..{N_DIRECTIONS - 1}"
+            raise ValueError(message)
+        return BinaryPolynomial.variable(qubit_of(turn, direction))
+
+    def validity_penalty(
+        self, qubit_of: QubitIndex, turn: int, weight: float
+    ) -> BinaryPolynomial:
+        """Return ``weight * (sum_a q_a - 1)**2``, zero exactly on one-hot patterns.
+
+        Quadratic, so it adds no degree. This is Eq. SI-15 of the reference paper,
+        which notes the constraint can alternatively be maintained by preparing a valid
+        initial state and using particle-number-conserving gates.
+        """
+        total = sum_polynomials(
+            BinaryPolynomial.variable(qubit_of(turn, a)) for a in range(N_DIRECTIONS)
+        )
+        residual = total - 1
+        return weight * residual * residual
+
+    def decode_turn(self, bits: Sequence[int], qubit_of: QubitIndex, turn: int) -> int:
+        """Return the direction whose qubit is set.
+
+        A solution violating the one-hot constraint has no well-defined turn; the
+        lowest set qubit is returned so that decoding always produces something, and
+        the caller is expected to check feasibility rather than trust the result.
+        """
+        for direction in range(N_DIRECTIONS):
+            if bits[qubit_of(turn, direction)]:
+                return direction
+        return 0
+
+
+#: The encoding of the reference paper, and the default throughout this package.
+DENSE = DenseEncoding()
+
+#: The sparser encoding, which trades qubits for locality.
+ONE_HOT = OneHotEncoding()
+
+#: Selectable encodings, by name.
+ENCODINGS: dict[str, TurnEncoding] = {DENSE.name: DENSE, ONE_HOT.name: ONE_HOT}

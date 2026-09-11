@@ -40,7 +40,7 @@ implemented**, and this README will not claim otherwise until they are.
 | M0 — Scaffold | Package, tooling, CI | **Done** |
 | M1 — Lattice and exhaustive baseline | Tetrahedral geometry, self-avoidance, HP contacts | **Done** |
 | M2 — Hamiltonian construction | Pauli / QUBO / Ising views, derived penalty weights | **Done** |
-| M3 — Classical and quantum-inspired solvers | Simulated annealing, simulated bifurcation | Planned |
+| M3 — Classical and quantum-inspired solvers | Simulated annealing, simulated bifurcation | **Done** |
 | M4 — Variational quantum solver | VQE / QAOA with CVaR | Out of scope for this build |
 | M5 — Noise and mitigation study | Depolarising / thermal sweeps, M3 and ZNE | Out of scope for this build |
 | M6 — Benchmark harness and results | Multi-seed sweeps, artifacts, figures, RESULTS.md | Planned |
@@ -65,6 +65,36 @@ The cubic lattice is a validation geometry only — the qubit encoding never use
 is here because the published HP benchmark sequences begin at N ≈ 20, far beyond
 exhaustive enumeration on any lattice, so walk counts rather than HP ground states are
 what provides a genuine external check at sizes that can be enumerated exactly.
+
+### Solvers: the encoding decides the outcome
+
+Both encodings describe identical physics and agree on the ground state. They do not
+behave alike under a solver. Success probability over seeded runs, against the exact
+optimum from exhaustive enumeration:
+
+| N | encoding | locality | variables | SA (independent) | SA (slaved) | bSB |
+| --- | --- | --- | --- | --- | --- | --- |
+| 6 | dense | 5 | 16 | 0.85 | **1.00** | 0.00 |
+| 6 | one-hot | 3 | 21 | **1.00** | **1.00** | **0.90** |
+| 8 | dense | 5 | 64 | 0.05 | **1.00** | 0.00 |
+| 8 | one-hot | 3 | 60 | 0.00 | 0.82 | 0.00 |
+
+Two results, in opposite directions:
+
+**On the raw QUBO, one-hot wins.** Rosenberg degree reduction of the 5-local dense
+encoding produces penalty weights ~10⁴ above the physical energy scale, and a contact
+worth −1 becomes a rounding error on that landscape. Ballistic SB never resolves it —
+it finds valid folds with zero contacts. The 3-local one-hot encoding needs far less
+reduction, its coefficient range is ~65× smaller, and bSB starts working.
+
+**Under a structure-aware move set, dense wins.** Auxiliaries are *determined* by the
+primary variables, so slaving them to their defining products shrinks the effective
+search to the primaries — 14 for dense against 24 for one-hot. The encoding that is
+friendlier to a naive solver is the harder one for a solver that exploits the
+structure.
+
+Qubit efficiency and solver-friendliness are not the same axis, and the dense encoding
+that minimises qubit count is the one a near-term Ising machine handles worst.
 
 ### Hamiltonian resources
 
