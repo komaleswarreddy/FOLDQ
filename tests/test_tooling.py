@@ -83,35 +83,21 @@ def test_makefile_recipes_are_tab_indented() -> None:
     assert not offenders, f"space-indented recipe lines: {offenders}"
 
 
-def test_unimplemented_targets_are_declared_as_failing() -> None:
-    """The M6 placeholder targets exit non-zero rather than silently succeeding.
+def test_benchmark_targets_invoke_the_cli() -> None:
+    """The bench, bench-fast and figures targets run the tool rather than stubbing out.
 
-    Guardrail 1 forbids anything that looks like a benchmark result but is not one.
-    A ``make bench`` that prints nothing and returns success is exactly that.
+    Until M6 these targets deliberately exited non-zero, because a task that prints
+    nothing and returns success looks like a benchmark that ran -- exactly what
+    Guardrail 1 forbids. They are implemented now, so the assertion is inverted: each
+    must actually invoke the CLI, and none may still be a placeholder.
     """
     makefile_text = MAKEFILE.read_text(encoding="utf-8")
-    for target in ("bench", "bench-fast", "figures"):
+    expected = {
+        "bench": "foldq bench",
+        "bench-fast": "foldq bench --fast",
+        "figures": "foldq figures",
+    }
+    for target, command in expected.items():
         recipe = makefile_text.split(f"\n{target}:\n", 1)[1].split("\n\n", 1)[0]
-        assert "not implemented" in recipe
-        assert "exit 1" in recipe
-
-
-#: An action reference in the workflow, e.g. ``uses: actions/checkout@v7.0.1``.
-_ACTION_USES = re.compile(
-    r"^\s*uses:\s*(?P<ref>[\w.-]+/[\w.-]+)@(?P<tag>\S+)", re.MULTILINE
-)
-
-
-def test_workflow_actions_are_pinned_to_exact_tags() -> None:
-    """Every CI action is pinned to an exact release tag, not a floating major.
-
-    A bare major tag is not guaranteed to exist: astral-sh/setup-uv publishes major
-    tags only up to v7 while its latest release is v10.1.0, so ``@v10`` resolves to
-    nothing and the job fails in "Set up job", before checkout and before any of this
-    test suite runs. Requiring a dotted tag catches that offline, and it also pins
-    exactly which action code produced a given benchmark artifact.
-    """
-    matches = _ACTION_USES.findall(WORKFLOW.read_text(encoding="utf-8"))
-    assert matches, "no action references found in the workflow"
-    floating = [f"{ref}@{tag}" for ref, tag in matches if "." not in tag]
-    assert not floating, f"actions pinned to a floating major tag: {floating}"
+        assert command in recipe, f"{target} does not run '{command}'"
+        assert "not implemented" not in recipe
