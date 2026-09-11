@@ -115,6 +115,9 @@ class SolverSummary:
     ----------
     solver
         Solver name.
+    sequence
+        The HP sequence folded. Two different sequences can share a chain length, so
+        without this a results table cannot tell their rows apart.
     encoding
         Turn encoding the Hamiltonian used.
     n_beads
@@ -138,6 +141,7 @@ class SolverSummary:
     """
 
     solver: str
+    sequence: str
     encoding: str
     n_beads: int
     optimum: float
@@ -152,6 +156,7 @@ class SolverSummary:
 
 def summarise(
     solver: str,
+    sequence: str,
     encoding: str,
     n_beads: int,
     optimum: float,
@@ -173,6 +178,7 @@ def summarise(
 
     return SolverSummary(
         solver=solver,
+        sequence=sequence,
         encoding=encoding,
         n_beads=n_beads,
         optimum=optimum,

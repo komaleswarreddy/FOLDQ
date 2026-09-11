@@ -232,6 +232,7 @@ def run_benchmark(
                 summaries.append(
                     summarise(
                         solver=_solver_label(solver),
+                        sequence=sequence,
                         encoding=encoding_name,
                         n_beads=instance.n_beads,
                         optimum=exact.energy,

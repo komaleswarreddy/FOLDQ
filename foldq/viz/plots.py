@@ -31,13 +31,26 @@ _STYLES = {"dense": "-", "one_hot": "--"}
 def _series(
     summaries: list[dict[str, Any]], field: str
 ) -> dict[tuple[str, str], list[tuple[int, float]]]:
-    """Group one field by solver and encoding, sorted by chain length."""
-    grouped: dict[tuple[str, str], list[tuple[int, float]]] = defaultdict(list)
+    """Group one field by solver and encoding, averaged per chain length.
+
+    The sweep contains more than one sequence at some chain lengths, so plotting raw
+    points would make a curve double back on itself. Values at equal N are averaged,
+    and the per-sequence numbers remain in the artifact and in the RESULTS.md table.
+
+    Rows whose value is undefined -- a solver that never reached the optimum has no
+    time-to-solution -- are dropped rather than substituted, so a missing point means
+    "never solved" instead of some large number that would read as a measurement.
+    """
+    collected: dict[tuple[str, str, int], list[float]] = defaultdict(list)
     for row in summaries:
         value = row[field]
         if value is None:
             continue
-        grouped[(row["solver"], row["encoding"])].append((row["n_beads"], value))
+        collected[(row["solver"], row["encoding"], row["n_beads"])].append(value)
+
+    grouped: dict[tuple[str, str], list[tuple[int, float]]] = defaultdict(list)
+    for (solver, encoding, n_beads), values in collected.items():
+        grouped[(solver, encoding)].append((n_beads, sum(values) / len(values)))
     return {key: sorted(points) for key, points in grouped.items()}
 
 

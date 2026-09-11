@@ -107,6 +107,7 @@ def test_summary_aggregates_repeated_runs() -> None:
     """A summary row carries every quantity the results table needs."""
     summary = summarise(
         solver="annealing",
+        sequence="HHPHPPHH",
         encoding="dense",
         n_beads=8,
         optimum=-2.0,
@@ -114,6 +115,7 @@ def test_summary_aggregates_repeated_runs() -> None:
         wall_times=[1.0, 1.0, 1.0, 1.0],
         evaluations=[10, 10, 10, 10],
     )
+    assert summary.sequence == "HHPHPPHH"
     assert summary.success_probability == 0.5
     assert summary.best_energy == -2.0
     assert summary.approximation_ratio == 1.0
@@ -126,6 +128,7 @@ def test_summary_reports_no_time_to_solution_when_never_solved() -> None:
     """A solver that never reaches the optimum has no TTS, and says so."""
     summary = summarise(
         solver="bifurcation",
+        sequence="HHPHPPHH",
         encoding="one_hot",
         n_beads=8,
         optimum=-2.0,
@@ -142,6 +145,7 @@ def test_summary_rejects_mismatched_input_lengths() -> None:
     with pytest.raises(ValueError, match="same length"):
         summarise(
             solver="annealing",
+            sequence="HPHPPH",
             encoding="dense",
             n_beads=6,
             optimum=-1.0,

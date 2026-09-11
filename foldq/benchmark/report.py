@@ -41,15 +41,16 @@ def solver_table(report: dict[str, Any]) -> str:
     """Return the per-solver results table."""
     rows = sorted(
         report["summaries"],
-        key=lambda r: (r["n_beads"], r["encoding"], r["solver"]),
+        key=lambda r: (r["n_beads"], r.get("sequence", ""), r["encoding"], r["solver"]),
     )
     header = (
-        "| N | encoding | solver | p_s | best E | optimum "
+        "| sequence | N | encoding | solver | p_s | best E | optimum "
         "| approx. ratio | mean run (s) | TTS @99% (s) |"
     )
-    lines = [header, "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    lines = [header, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for row in rows:
         lines.append(
+            f"| `{row.get('sequence', '?')}` "
             f"| {row['n_beads']} | {row['encoding']} | {row['solver']} "
             f"| {row['success_probability']:.2f} | {row['best_energy']:.0f} "
             f"| {row['optimum']:.0f} | {_format(row['approximation_ratio'])} "
